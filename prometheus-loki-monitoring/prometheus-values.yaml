@@ -1,0 +1,11 @@
+prometheus:
+  prometheusSpec:
+    retention: 2d  # Keep Prometheus data for 2 days
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+          storageClassName: local-path  # or nfs-csi / gp2 / etc.
