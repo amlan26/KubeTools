@@ -22,7 +22,7 @@ All components run in the `monitoring` namespace unless noted.
 |---|---|---|
 | Prometheus | 9090 | HTTP |
 | Loki | 3100 | HTTP (push + query API) |
-| Tempo | 3100 | HTTP (query API) |
+| Tempo | 3200 | HTTP (query API) |
 | Tempo OTLP | 4317 | gRPC |
 | Tempo OTLP | 4318 | HTTP |
 | Alloy UI | 12345 | HTTP (debugging only, not for ingestion) |

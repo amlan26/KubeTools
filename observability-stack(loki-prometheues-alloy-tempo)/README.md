@@ -39,7 +39,7 @@ flowchart TB
         subgraph backends["Storage Backends"]
             prom[("Prometheus\nmetrics · 2d retention\n5Gi PVC")]
             loki[("Loki\nlogs")]
-            tempo[("Tempo\ntraces · 24h retention\n5Gi PVC")]
+            tempo[("Tempo\ntraces · 24h retention\n5Gi PVC · :3200")]
         end
 
         grafana["Grafana"]
@@ -217,9 +217,9 @@ under **Connections → Data sources**:
 
 | Datasource | URL |
 |---|---|
-| Prometheus | `http://kind-prometheus-kube-prome-prometheus:9090` |
-| Loki | `http://loki:3100` |
-| Tempo | `http://tempo:3100` |
+| Prometheus | `http://kind-prometheus-kube-prome-prometheus.monitoring:9090` |
+| Loki | `http://loki.monitoring:3100` |
+| Tempo | `http://tempo.monitoring:3200` |
 
 (Adjust service names to match `kubectl get svc -n monitoring` in your cluster.)
 
