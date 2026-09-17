@@ -1,0 +1,53 @@
+test_pod:
+  enabled: true
+  image: bats/bats:1.8.2
+  pullPolicy: IfNotPresent
+loki:
+  enabled: true
+  isDefault: true
+  image:
+    tag: 2.9.10
+  url: http://{{(include "loki.serviceName" .)}}:{{ .Values.loki.service.port }}
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http-metrics
+    initialDelaySeconds: 45
+  livenessProbe:
+    httpGet:
+      path: /ready
+      port: http-metrics
+    initialDelaySeconds: 45
+  datasource:
+    jsonData: "{}"
+    uid: ""
+# Log shipping is now handled by the separate `alloy` Helm release
+# (see alloy-values.yaml). promtail, fluent-bit, filebeat and logstash
+# were all alternative shippers this chart supports -- fluent-bit,
+# filebeat and logstash were never enabled, and promtail is retired.
+promtail:
+  enabled: false
+grafana:
+  enabled: false
+  sidecar:
+    datasources:
+      label: ""
+      labelValue: ""
+      enabled: true
+      maxLines: 1000
+  image:
+    tag: 10.3.3
+prometheus:
+  enabled: false
+  isDefault: false
+  url: http://{{ include "prometheus.fullname" .}}:{{ .Values.prometheus.server.service.servicePort }}{{ .Values.prometheus.server.prefixURL }}
+  datasource:
+    jsonData: "{}"
+# proxy is currently only used by loki test pod
+# Note: If http_proxy/https_proxy are set, then no_proxy should include the
+# loki service name, so that tests are able to communicate with the loki
+# service.
+proxy:
+  http_proxy: ""
+  https_proxy: ""
+  no_proxy: ""

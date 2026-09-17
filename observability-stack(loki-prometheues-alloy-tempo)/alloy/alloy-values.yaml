@@ -1,0 +1,98 @@
+# Grafana Alloy — replaces the `promtail` shipper from loki-stack.
+# Deploy as its own Helm release (see commands below), it talks to the
+# same Loki service your promtail clients were already pushing to:
+#   http://loki:3100/loki/api/v1/push
+#
+# Chart: grafana/alloy
+# Docs:  https://grafana.com/docs/alloy/latest/configure/kubernetes/
+
+controller:
+  type: daemonset   # one Alloy pod per node, same topology as promtail had
+
+alloy:
+  # Mounts the host's /var/log into the container (read-only) so Alloy can
+  # tail /var/log/pods/*/*/*.log the same way promtail did.
+  mounts:
+    varlog: true
+
+  configMap:
+    content: |
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // Discover every pod in the cluster via the Kubernetes API.
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Turn discovery metadata into labels + a file path to tail.
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node_name"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "job"
+        }
+
+        // Build the on-disk path for this container's log file.
+        // Kubernetes writes logs to /var/log/pods/<ns>_<pod>_<uid>/<container>/*.log
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "__path__"
+          replacement   = "/var/log/pods/*$1/*.log"
+        }
+      }
+
+      // Find the actual files matching those paths on this node.
+      local.file_match "pods" {
+        path_targets = discovery.relabel.pods.output
+      }
+
+      // Tail them.
+      loki.source.file "pods" {
+        targets    = local.file_match.pods.targets
+        forward_to = [loki.process.pods.receiver]
+      }
+
+      // Parse the CRI log format (timestamp, stream, message) before shipping.
+      loki.process "pods" {
+        stage.cri {}
+
+        forward_to = [loki.write.loki.receiver]
+      }
+
+      // Push to the same Loki your promtail clients used.
+      loki.write "loki" {
+        endpoint {
+          url = "http://loki:3100/loki/api/v1/push"
+        }
+      }
+
+  # Alloy also exposes a UI (off by default in some chart versions);
+  # harmless to leave on for debugging pipeline health.
+  ui:
+    enabled: true
